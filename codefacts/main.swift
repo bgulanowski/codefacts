@@ -8,7 +8,7 @@
 
 import Foundation
 
-let defaultFolder = "/Users/brent/Dev/github/ios-point-of-sale/PointOfSale/PointOfSale/Controllers"
+let defaultFolder = "/Users/brent/Dev/github/ios-point-of-sale/PointOfSale/PointOfSale"
 
 let inportExtractRegex = NSRegularExpression(pattern: "import \"([\\w/+]+\\.h)\"", options: nil, error: nil)!
 
@@ -54,7 +54,7 @@ func parseHeaderImports ( source: String ) -> Array<String> {
     }
 }
 
-func getFolder () -> String {
+func getInputFolder () -> String {
     let arguments = NSProcessInfo.processInfo().arguments as Array
     if arguments.count >= 2 {
         if let argument = arguments[1] as? String {
@@ -81,7 +81,13 @@ func enumerateFiles ( folder: String ) -> Dictionary<String, FileFacts> {
                         facts.mentions++;
                     }
                     else {
-                        fileIndex[header] = FileFacts(name: header, imports:headers.count, mentions: isHeader ? 0 : 1)
+                        fileIndex[header] = FileFacts(name: header, type: FileFacts.FileType.Interface, imports: 0, mentions: 1)
+                    }
+                }
+                if let fileName = filePath.pathComponents.last {
+                    let type = isHeader ? FileFacts.FileType.Interface : FileFacts.FileType.Implementation;
+                    if fileIndex[fileName] == nil {
+                        fileIndex[fileName] = FileFacts(name: fileName, type: type, imports: headers.count, mentions: 0)
                     }
                 }
             }
@@ -92,16 +98,30 @@ func enumerateFiles ( folder: String ) -> Dictionary<String, FileFacts> {
 
 /// - main program
 
-let fileIndex = enumerateFiles(getFolder())
+let fileIndex = enumerateFiles(getInputFolder())
 
-let sorted = fileIndex.values.array.sorted { (first, second) -> Bool in
+let sortedByName = fileIndex.values.array.sorted { (first, second) -> Bool in
     return first.name < second.name
 }
 
-let candidates = sorted.filter { (facts) -> Bool in
-    return facts.name.hasPrefix("PS") && facts.mentions == 0
+let noMentions = sortedByName.filter { (facts) -> Bool in
+    return facts.name.hasPrefix("PS") && facts.mentions == 0 && facts.type == FileFacts.FileType.Interface
 }
 
-for fact in candidates {
-    println(fact)
+println("\nThe follow files have no imports that I could find:")
+
+for fact in noMentions {
+    println("\t"+fact.name)
+}
+
+let sortedByImports = fileIndex.values.array.sorted { (first, second) -> Bool in
+    return first.imports > second.imports
+}
+
+let mostImports = sortedByImports[0..<20]
+
+println("\nThe following files have a lot of imports:")
+
+for fact in mostImports {
+    println("\t"+fact.description)
 }
