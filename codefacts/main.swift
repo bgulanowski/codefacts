@@ -8,22 +8,20 @@
 
 import Foundation
 
-let defaultFolder = "/Users/brent/Dev/github/ios-point-of-sale/PointOfSale/PointOfSale"
+let defaultFolder = "/Users/brent/Dev/github/ios-point-of-sale/PointOfSale/PointOfSale/Additions"
 
 let inportExtractRegex = NSRegularExpression(pattern: "import \"([\\w/+]+\\.h)\"", options: nil, error: nil)!
 
+func getFullPath (basePath: String, filePath: String) -> String {
+    return basePath + "/" + filePath
+}
+
 func getSource ( filePath: String ) -> String? {
-    let fullPath = defaultFolder+"/"+filePath
-    var string: String!
-    if let handle = NSFileHandle(forReadingAtPath: fullPath)? {
-        let data = handle.readDataToEndOfFile()
-        handle.closeFile()
-        string = NSString(data: data, encoding: NSUTF8StringEncoding)
+    var error: NSErrorPointer = nil
+    let string = NSString(contentsOfFile: filePath, encoding: NSUTF8StringEncoding, error: error)?
+    if string == nil {
+        println("Unable to load source for file \(filePath); error: \(error.memory).")
     }
-    if string == nil || countElements(string!) == 0 {
-        println("Could not read file at path '\(filePath)'")
-    }
-    
     return string
 }
 
@@ -66,6 +64,7 @@ func getInputFolder () -> String {
 
 func enumerateFiles ( folder: String ) -> Dictionary<String, FileFacts> {
     
+    let inputPath = getInputFolder()
     let fileManager = NSFileManager.defaultManager()
     let directoryEnumerator = fileManager.enumeratorAtPath(folder)
     
@@ -74,18 +73,18 @@ func enumerateFiles ( folder: String ) -> Dictionary<String, FileFacts> {
     while let filePath = directoryEnumerator?.nextObject() as? String {
         let isHeader = filePath.hasSuffix("h")
         if isHeader || filePath.hasSuffix("m") {
-            if let source = getSource(filePath) {
+            if let source = getSource(getFullPath(inputPath, filePath))? {
                 let headers = parseHeaderImports(source)
                 for header in headers {
                     if let facts = fileIndex[header] {
-                        facts.mentions++;
+                        facts.mentions++
                     }
                     else {
                         fileIndex[header] = FileFacts(name: header, type: FileFacts.FileType.Interface, imports: 0, mentions: 1)
                     }
                 }
                 if let fileName = filePath.pathComponents.last {
-                    let type = isHeader ? FileFacts.FileType.Interface : FileFacts.FileType.Implementation;
+                    let type = isHeader ? FileFacts.FileType.Interface : FileFacts.FileType.Implementation
                     if fileIndex[fileName] == nil {
                         fileIndex[fileName] = FileFacts(name: fileName, type: type, imports: headers.count, mentions: 0)
                     }
@@ -100,22 +99,17 @@ func enumerateFiles ( folder: String ) -> Dictionary<String, FileFacts> {
 
 let fileIndex = enumerateFiles(getInputFolder())
 
-let sortedByName = fileIndex.values.array.sorted { (first, second) -> Bool in
-    return first.name < second.name
-}
+let sortedByName = fileIndex.values.array.sorted { $0.name < $1.name }
+let sortedByImports = fileIndex.values.array.sorted { $0.imports > $1.imports }
 
-let noMentions = sortedByName.filter { (facts) -> Bool in
+let noMentions = sortedByName.filter { facts in
     return facts.name.hasPrefix("PS") && facts.mentions == 0 && facts.type == FileFacts.FileType.Interface
 }
 
 println("\nThe follow files have no imports that I could find:")
 
 for fact in noMentions {
-    println("\t"+fact.name)
-}
-
-let sortedByImports = fileIndex.values.array.sorted { (first, second) -> Bool in
-    return first.imports > second.imports
+    println("\t" + fact.name)
 }
 
 let mostImports = sortedByImports[0..<20]
