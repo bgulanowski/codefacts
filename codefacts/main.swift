@@ -19,16 +19,8 @@ func getFullPath (basePath: String, filePath: String) -> String {
 func getSource ( filePath: String ) -> String? {
     var error: NSErrorPointer = nil
     let string = NSString(contentsOfFile: filePath, encoding: NSUTF8StringEncoding, error: error)?
-    // there must be a nicer way to safely print an optional error
     if string == nil {
-        var errorInfo : Printable
-        if (error == nil) {
-            errorInfo = "unknown"
-        }
-        else {
-            errorInfo = error.memory!
-        }
-        println("Unable to load source for file \(filePath); error: \(errorInfo).")
+        println("Unable to load source for file \(filePath); error: \(error).")
     }
     return string
 }
