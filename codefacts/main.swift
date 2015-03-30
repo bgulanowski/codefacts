@@ -8,7 +8,7 @@
 
 import Foundation
 
-let defaultFolder = "/Users/brent/Dev/github/ios-point-of-sale/PointOfSale/PointOfSale/Additions"
+let defaultFolder = "/Users/brent/Dev/github/ios-point-of-sale/PointOfSale/PointOfSale"
 
 let inportExtractRegex = NSRegularExpression(pattern: "import \"([\\w/+]+\\.h)\"", options: nil, error: nil)!
 
@@ -19,8 +19,16 @@ func getFullPath (basePath: String, filePath: String) -> String {
 func getSource ( filePath: String ) -> String? {
     var error: NSErrorPointer = nil
     let string = NSString(contentsOfFile: filePath, encoding: NSUTF8StringEncoding, error: error)?
+    // there must be a nicer way to safely print an optional error
     if string == nil {
-        println("Unable to load source for file \(filePath); error: \(error.memory).")
+        var errorInfo : Printable
+        if (error == nil) {
+            errorInfo = "unknown"
+        }
+        else {
+            errorInfo = error.memory!
+        }
+        println("Unable to load source for file \(filePath); error: \(errorInfo).")
     }
     return string
 }
@@ -71,8 +79,8 @@ func enumerateFiles ( folder: String ) -> Dictionary<String, FileFacts> {
     var fileIndex = [String : FileFacts]()
 
     while let filePath = directoryEnumerator?.nextObject() as? String {
-        let isHeader = filePath.hasSuffix("h")
-        if isHeader || filePath.hasSuffix("m") {
+        let isHeader = filePath.pathExtension == "h"
+        if isHeader || filePath.pathExtension == "m" {
             if let source = getSource(getFullPath(inputPath, filePath))? {
                 let headers = parseHeaderImports(source)
                 for header in headers {
